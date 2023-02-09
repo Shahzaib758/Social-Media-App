@@ -17,10 +17,22 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: true
+    },
+    profile: {
+        type: String,
+    },
+    friends: {
+        type: Array,
+    },
+    pendingRequest: {
+        type: Array,
+    },
+    blockUser: {
+        type: Array,
     }
-})
+});
 
 
-const User = mongoose.model("user",userSchema);
+const User = mongoose.model("user", userSchema);
 
 module.exports = User;
