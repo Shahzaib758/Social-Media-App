@@ -1,21 +1,26 @@
 const express = require("express");
 const router = express.Router();
-const { getUser,
-    register,
+const {
+    getUser,
+    registerUser,
     login,
     updateUser,
     updateProfilePicture,
     sendRequest,
     responceRequest,
-    blockUser } = require("../controller/user");
+    blockUser,
+    friendsList,
+    blockList,
+    unfriend,
+    unblock
+} = require("../controller/user");
 
 const { verifationToken } = require("../utils/helper")
 
 
-// Register User
 router.get("/", verifationToken, getUser)
 
-router.post("/register", register);
+router.post("/register", registerUser);
 
 router.post("/login", login)
 
@@ -28,5 +33,13 @@ router.put('/send/request', verifationToken, sendRequest);
 router.put('/respone/request', verifationToken, responceRequest);
 
 router.put('/block/user', verifationToken, blockUser);
+
+router.get('/friends', verifationToken, friendsList);
+
+router.get('/blocks', verifationToken, blockList);
+
+router.put('/unfriend', verifationToken, unfriend);
+
+router.put('/unblock', verifationToken, unblock);
 
 module.exports = router;

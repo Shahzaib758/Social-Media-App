@@ -2,6 +2,21 @@ const bcrypt = require("bcrypt");
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 
+
+const createUser = async ({ userName, email, phoneNumber, password, profile }) => {
+    try {
+        const user = await User({
+            userName, email, phoneNumber, password, profile
+        });
+        const result = await user.save()
+        return result;
+    } catch (error) {
+        throw new Error(error.message);
+    }
+};
+
+
+
 // Future Update custumize message is fuind user or email
 const checkEmailAndNumber = async (email = "null", phoneNumber = 0000000) => {
     try {
@@ -48,11 +63,18 @@ const verifationToken = async (req, res, next) => {
     }
 }
 
+const checkAvailable = (id, pendingRequest) => {
+    console.log(id)
+    console.log(pendingRequest[0]._id);
+    return pendingRequest.some((person) => person._id.toHexString() === id);
+};
+
 
 module.exports = {
+    createUser,
     checkEmailAndNumber,
     encryptPssword,
     verifyPassword,
     verifationToken,
-
+    checkAvailable
 }

@@ -1,14 +1,15 @@
 const jwt = require("jsonwebtoken");
-
-const {
-    checkEmailAndNumber,
-    encryptPssword,
-    verifyPassword,
-} = require("../utils/helper");
+const mongoose = require("mongoose");
+const ObjectId = mongoose.Types.ObjectId;
 
 const {
     createUser,
-} = require("../db_oper/user");
+    checkEmailAndNumber,
+    encryptPssword,
+    verifyPassword,
+    checkAvailable,
+} = require("../utils/helper");
+
 const User = require("../models/user");
 
 // GET User 
@@ -25,7 +26,7 @@ const getUser = async (req, res) => {
 }
 
 // Creating User
-const register = async (req, res) => {
+const registerUser = async (req, res) => {
     let { userName, email, phoneNumber, password, profile } = req.body;
     try {
         const isAvailable = await checkEmailAndNumber(email, phoneNumber); // return user
@@ -142,7 +143,7 @@ const sendRequest = async (req, res) => {
 
         const newUser = await User.findByIdAndUpdate({ _id: body.id }, {
             $push: {
-                pendingRequest: { _id: user.id }
+                pendingRequest: { _id: user._id }
             }
         }, { new: true });
         console.log(newUser.pendingRequest)
@@ -162,36 +163,54 @@ const sendRequest = async (req, res) => {
 
 // Responce request 
 const responceRequest = async (req, res) => {
-    const { id, status } = req.body;
+    const { id, status } = req.body;  // request sender
     const user = req.user;
+
     try {
-        if (status === 1) {
-            // deleting item from pendingRequest and adding item in friend
+        if (status === 1) { //Accepting Request
+
+            //  check user available in the list or not
+            const result = checkAvailable(id, user.pendingRequest);
+            if (!result) {
+                return res.status(404).json({
+                    status: false,
+                    message: "User is not Available!"
+                });
+            }
+
+            // adding user in the request sender friend list
             await User.updateOne(
                 { _id: id },
                 { $push: { friends: { _id: user._id } } }
             );
 
-            // Updating user document 
+            // deleting friend from the friend list of user and add into the friend list of user
             await User.updateOne(
-                { _id: user.id },
+                { _id: user._id },
                 {
-                    $pull: { pendingRequest: { _id: id } },
-                    $push: { friends: { _id: id } }
+                    $push: { friends: { _id: new ObjectId(id) } },
+                    $pull: { pendingRequest: { _id: new ObjectId(id) } }
                 }
             );
 
             return res.status(200).json({
                 status: true,
-                message: "Operation is successfull, request is decline",
+                message: "Operation is successfull, request is Accepted",
             });
 
         } else {
-
+            //  check user available in the list or not
+            const result = checkAvailable(id, user.pendingRequest);
+            if (!result) {
+                return res.status(404).json({
+                    status: false,
+                    message: "User is not Available!"
+                });
+            }
             // delete object from array
             await User.updateOne(
-                { _id: user.id },
-                { $pull: { pendingRequest: { _id: id } } }
+                { _id: user._id },
+                { $pull: { pendingRequest: { _id: new ObjectId(id) } } }
             );
 
             res.json({ status: true, message: "Operation is successfull, request is decline" });
@@ -204,6 +223,8 @@ const responceRequest = async (req, res) => {
             trace: error.message
         });
     }
+
+
 }
 
 // Block User
@@ -213,16 +234,16 @@ const blockUser = async (req, res) => {
 
     try {
         await User.updateOne(
-            { _id: user.id },
+            { _id: user._id },
             {
-                $pull: { pendingRequest: { _id: id } },
+                $pull: { pendingRequest: { _id: new ObjectId(id) } },
             }
         );
         await User.updateOne(
-            { _id: user.id },
+            { _id: user._id },
             {
-                $pull: { friends: { _id: id } },
-                $push: { blockUser: { _id: id } }
+                $pull: { friends: { _id: new ObjectId(id) } },
+                $push: { blockUser: { _id: new ObjectId(id) } }
             }
         );
         return res.json({ status: true, message: "Operation is successfull, user is blocked" });
@@ -235,17 +256,162 @@ const blockUser = async (req, res) => {
     }
 }
 
+// See Friend List
+const friendsList = async (req, res) => {
+    const { friends } = req.user;
+    if (friends.length) {
+        try {
+            const ids = friends.map(friend => ObjectId(friend._id));
+            const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
+
+            return res.status(422).json({
+                status: false,
+                message: "Operation successfull",
+                trace: data
+            });
+
+        } catch (error) {
+            return res.status(422).json({
+                status: false,
+                message: "Unexpected Error Occured! while fetching friend list",
+                trace: error.message
+            });
+        }
+    } else {
+        return res.status(404).json({
+            status: false,
+            message: "User is not Available!"
+        });
+    }
+}
+
+// See Block List
+const blockList = async (req, res) => {
+    const { blockUser } = req.user;
+    if (blockUser.length) {
+        try {
+            const ids = blockUser.map(user => ObjectId(user._id));
+            const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
+
+            return res.status(422).json({
+                status: false,
+                message: "Operation successfull",
+                trace: data
+            });
+
+        } catch (error) {
+            return res.status(422).json({
+                status: false,
+                message: "Unexpected Error Occured! while fetching block list",
+                trace: error.message
+            });
+        }
+    } else {
+        return res.status(404).json({
+            status: false,
+            message: "User is not Available!"
+        });
+    }
+}
+
+const unfriend = async (req, res) => {
+    const { id } = req.body; // End Person
+    const user = req.user;
+
+    //  check user available in the list or not
+    const result = checkAvailable(id, user.friends);
+    if (!result) {
+        return res.status(404).json({
+            status: false,
+            message: "User is not Available!"
+        });
+    }
+
+    try {
+        // removing end person from user friends list
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $pull: { friends: { _id: new ObjectId(id) } },
+            }
+        );
+
+        // removing user from end person friends list
+        await User.findByIdAndUpdate(
+            { _id: id },
+            {
+                $pull: { friends: { _id: user._id } },
+            }
+        );
+
+        return res.status(200).json({
+            status: true,
+            message: "Operation successfull user is unfriended",
+        });
+    } catch (error) {
+        return res.status(422).json({
+            status: false,
+            message: "Unexpected Error Occured!",
+            trace: error.message
+        });
+    }
+}
+
+const unblock = async (req, res) => {
+    const { id } = req.body; // end person
+    const user = req.user;
+
+    console.log(user)
+
+    //  check user available in the list or not
+    const result = checkAvailable(id, user.blockUser);
+
+    if (!result) {
+        return res.status(404).json({
+            status: false,
+            message: "User is not Available!"
+        });
+    }
+
+    try {
+        // removing end person from user block list
+        await User.updateOne(
+            { _id: user._id },
+            {
+                $pull: { blockUser: { _id: new ObjectId(id) } },
+            }
+        );
+
+        return res.status(200).json({
+            status: true,
+            message: "Operation successfull user is unblocked"
+        });
+    } catch (error) {
+        return res.status(422).json({
+            status: false,
+            message: "Unexpected Error Occured!",
+            trace: error.message
+        });
+    }
+}
+
+
+
 // See All Pending request  using db.getCollection('feed').find({"_id" : {"$in" : [ObjectId("55880c251df42d0466919268"), ObjectId("55bf528e69b70ae79be35006")]}});
 // https://stackoverflow.com/questions/32264225/how-to-get-multiple-document-using-array-of-mongodb-id
 
 
 module.exports = {
     getUser,
-    register,
+    registerUser,
     login,
     updateUser,
     updateProfilePicture,
     sendRequest,
     responceRequest,
-    blockUser
+    blockUser,
+    friendsList,
+    blockList,
+    unfriend,
+    unblock
 }
