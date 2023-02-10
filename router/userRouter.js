@@ -17,9 +17,6 @@ const {
 
 const { verifationToken } = require("../utils/helper")
 
-
-router.get("/", verifationToken, getUser)
-
 router.post("/register", registerUser);
 
 router.post("/login", login)
@@ -34,6 +31,8 @@ router.put('/respone/request', verifationToken, responceRequest);
 
 router.put('/block/user', verifationToken, blockUser);
 
+router.get("/", verifationToken, getUser)
+
 router.get('/friends', verifationToken, friendsList);
 
 router.get('/blocks', verifationToken, blockList);
@@ -41,5 +40,7 @@ router.get('/blocks', verifationToken, blockList);
 router.put('/unfriend', verifationToken, unfriend);
 
 router.put('/unblock', verifationToken, unblock);
+
+
 
 module.exports = router;

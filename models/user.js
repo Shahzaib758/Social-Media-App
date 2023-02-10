@@ -24,10 +24,13 @@ const userSchema = new mongoose.Schema({
     friends: {
         type: Array,
     },
-    pendingRequest: {
+    pendingRequests: {
         type: Array,
     },
-    blockUser: {
+    sendRequests: {
+        type: Array,
+    },
+    blockList: {
         type: Array,
     }
 });

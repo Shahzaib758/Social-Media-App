@@ -63,12 +63,20 @@ const verifationToken = async (req, res, next) => {
     }
 }
 
-const checkAvailable = (id, pendingRequest) => {
+const checkAvailable = (id, pendingRequests) => {
     console.log(id)
-    console.log(pendingRequest[0]._id);
-    return pendingRequest.some((person) => person._id.toHexString() === id);
+    console.log(pendingRequests[0]._id);
+    return pendingRequests.some((person) => person._id.toHexString() === id);
 };
 
+
+const checkLists = (id, friends, pendingRequests, sendRequests) => {
+    const friend = friends.some(element => element._id.toHexString() == id);
+    const pendingRequest = pendingRequests.some(element => element._id.toHexString() == id);
+    const sendRequest = sendRequests.some(element => element._id.toHexString() == id);
+
+    return { friend, pendingRequest, sendRequest };
+}
 
 module.exports = {
     createUser,
@@ -76,5 +84,6 @@ module.exports = {
     encryptPssword,
     verifyPassword,
     verifationToken,
-    checkAvailable
+    checkAvailable,
+    checkLists
 }
