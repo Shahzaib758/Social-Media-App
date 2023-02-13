@@ -3,13 +3,10 @@ const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 
 
-const createUser = async ({ userName, email, phoneNumber, password, profile }) => {
+const createUser = async (userObj) => {
     try {
-        const user = await User({
-            userName, email, phoneNumber, password, profile
-        });
-        const result = await user.save()
-        return result;
+        const user = await User.create(userObj);
+        return user;
     } catch (error) {
         throw new Error(error.message);
     }
@@ -18,9 +15,9 @@ const createUser = async ({ userName, email, phoneNumber, password, profile }) =
 
 
 // Future Update custumize message is fuind user or email
-const checkEmailAndNumber = async (email = "null", phoneNumber = 0000000) => {
+const checkEmailAndNumber = async (email = "null", phone = 0000000) => {
     try {
-        const user = await User.findOne({ $or: [{ email }, { phoneNumber }] }).exec();
+        const user = await User.findOne({ $or: [{ email }, { phone }] }).lean();
         return user;
     } catch (error) {
         throw new Error(error.message);
@@ -51,7 +48,7 @@ const verifationToken = async (req, res, next) => {
     const result = jwt.verify(token, process.env.JWT);
     if (result.id && result.iat) {
         try {
-            const user = await User.findById({ _id: result.id })
+            const user = await User.findById({ _id: result.id }).lean();
             req.user = user;
             next();
         } catch (error) {

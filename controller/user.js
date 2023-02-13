@@ -16,11 +16,22 @@ const User = require("../models/user");
 // GET User 
 const getUser = async (req, res) => {
     const user = req.user;
-    try {
-        let userdata = { ...user._doc }
+    const { id } = req.body;
 
-        delete userdata.password;
-        return res.json({ status: true, message: "Operation successfull", data: userdata })
+    try {
+        const match = user._id.toHexString() === id;
+        if (match) {
+            let userdata = { ...user }
+
+            delete userdata.password;
+            return res.json({ status: true, message: "Operation successfull", data: userdata })
+        }
+        else {
+            let userdata = await User.findOne({ _id: id }).lean();
+            delete userdata.password;
+            return res.json({ status: true, message: "Operation successfull", data: userdata })
+        }
+
     } catch (error) {
         return res.status(400).json({ status: false, message: "An error occured!", trace: error.message })
     }
@@ -28,9 +39,17 @@ const getUser = async (req, res) => {
 
 // Creating User
 const registerUser = async (req, res) => {
-    let { userName, email, phoneNumber, password, profile } = req.body;
+    let {
+        email,
+        password,
+        username,
+        profile,
+        phone,
+        gender,
+    } = req.body;
     try {
-        const isAvailable = await checkEmailAndNumber(email, phoneNumber); // return user
+        const isAvailable = await checkEmailAndNumber(email, phone); // return user
+
 
         if (isAvailable) {
             return res.json({ message: "Please use different Email/Number" });
@@ -38,7 +57,16 @@ const registerUser = async (req, res) => {
 
         password = await encryptPssword(password);
 
-        const result = await createUser({ userName, email, phoneNumber, password, profile });
+        const userObj = {
+            email,
+            password,
+            username,
+            profile,
+            phone,
+            gender,
+        }
+
+        const result = await createUser(userObj);
         return res.status(201).json({ status: true, message: "User is successfully created", trace: result });
     } catch (error) {
         return res.status(422).json({ status: false, message: "An error occured!", trace: error.message });
@@ -55,7 +83,9 @@ const login = async (req, res) => {
             return res.json({ message: "Please use correct Email/Number" });
         }
 
+
         const result = await verifyPassword(password, user.password);
+        console.log(result)
 
         if (!result) {
             return res.json({ message: "Please use correct password" });
