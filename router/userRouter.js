@@ -17,29 +17,18 @@ const {
 
 const { verifationToken } = require("../utils/helper")
 
-router.post("/register", registerUser);
-
-router.post("/login", login)
-
-router.put("/updateUser", verifationToken, updateUser);
-
-router.put('/updateProfilePicture', verifationToken, updateProfilePicture);
-
-router.put('/send/request', verifationToken, sendRequest);
-
-router.put('/respone/request', verifationToken, responceRequest);
-
-router.put('/block/user', verifationToken, blockUser);
-
-router.get("/", verifationToken, getUser)
-
-router.get('/friends', verifationToken, friendsList);
-
-router.get('/blocks', verifationToken, blockList);
-
-router.put('/unfriend', verifationToken, unfriend);
-
-router.put('/unblock', verifationToken, unblock);
+router.post("/register", registerUser); // Register User
+router.post("/login", login) // Login User
+router.put("/updateUser", verifationToken, updateUser); // Update User's Details
+router.put('/updateProfilePicture', verifationToken, updateProfilePicture); // Update User's Profile 
+router.put('/send/request', verifationToken, sendRequest); // Sending Request to other User
+router.put('/respone/request', verifationToken, responceRequest); // Responding on a friend request
+router.put('/block/user', verifationToken, blockUser); // Block other User
+router.get("/", verifationToken, getUser) // Get Single User
+router.get('/friends', verifationToken, friendsList); // Get friends list
+router.get('/block/list', verifationToken, blockList); // Get Blocked users List
+router.put('/unfriend', verifationToken, unfriend); // Unfriend User
+router.put('/unblock', verifationToken, unblock); // Unblock User
 
 
 

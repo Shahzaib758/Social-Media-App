@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 
-
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
@@ -34,13 +33,18 @@ const userSchema = new mongoose.Schema({
     },
     bio: {
         type: String,
-        maxLenght: [500,"Bio must contain 500 characters"]
+        maxLenght: [500, "Bio must contain 500 characters"]
     },
     skills: {
         type: String
     },
-    designation: {
+    profession: {
         type: String,
+    },
+    deactivate: {
+        type: Boolean,
+        enum: [true, false],
+        message: "Deactivate can't be {Value}"
     },
     friends: {
         type: Array,

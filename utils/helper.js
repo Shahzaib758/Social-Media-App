@@ -2,18 +2,6 @@ const bcrypt = require("bcrypt");
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 
-
-const createUser = async (userObj) => {
-    try {
-        const user = await User.create(userObj);
-        return user;
-    } catch (error) {
-        throw new Error(error.message);
-    }
-};
-
-
-
 // Future Update custumize message is fuind user or email
 const checkEmailAndNumber = async (email = "null", phone = 0000000) => {
     try {
@@ -61,22 +49,21 @@ const verifationToken = async (req, res, next) => {
 }
 
 const checkAvailable = (id, pendingRequests) => {
-    console.log(id)
-    console.log(pendingRequests[0]._id);
+    // Checking weather user is in request pending the list or not
     return pendingRequests.some((person) => person._id.toHexString() === id);
 };
 
 
-const checkLists = (id, friends, pendingRequests, sendRequests) => {
+const checkLists = (id, friends = [], pendingRequests = [], sendRequests = [], blockList = []) => {
     const friend = friends.some(element => element._id.toHexString() == id);
     const pendingRequest = pendingRequests.some(element => element._id.toHexString() == id);
     const sendRequest = sendRequests.some(element => element._id.toHexString() == id);
+    const isBlocked = blockList.some(element => element._id.toHexString() == id);
 
-    return { friend, pendingRequest, sendRequest };
+    return { friend, pendingRequest, sendRequest, isBlocked };
 }
 
 module.exports = {
-    createUser,
     checkEmailAndNumber,
     encryptPssword,
     verifyPassword,

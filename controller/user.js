@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 const ObjectId = mongoose.Types.ObjectId;
 
 const {
-    createUser,
     checkEmailAndNumber,
     encryptPssword,
     verifyPassword,
@@ -13,12 +12,13 @@ const {
 
 const User = require("../models/user");
 
-// GET User 
+// GET Single User 
 const getUser = async (req, res) => {
     const user = req.user;
     const { id } = req.body;
 
     try {
+        // Check weather request is for Users own profile
         const match = user._id.toHexString() === id;
         if (match) {
             let userdata = { ...user }
@@ -28,8 +28,32 @@ const getUser = async (req, res) => {
         }
         else {
             let userdata = await User.findOne({ _id: id }).lean();
-            delete userdata.password;
-            return res.json({ status: true, message: "Operation successfull", data: userdata })
+
+            // ChecK user blocklist or other user (ID) blockList
+            const result_1 = checkLists(id, [], [], [], user.blockList);
+            const result_2 = checkLists(user._id, [], [], [], userdata.blockList);
+
+            console.log(result_1.isBlocked);
+            console.log(result_2.isBlocked);
+
+            if ((result_1.isBlocked) || (result_2.isBlocked)) {
+                return res.status(400).json({ status: false, message: "User doesnot exit" })
+            }
+
+            return res.json({
+                status: true, message: "Operation successfull", data: {
+                    id: userdata._id,
+                    username: userdata.username,
+                    email: userdata.email,
+                    phone: userdata.phone,
+                    gender: userdata.gender,
+                    profile: userdata.profile,
+                    profession: userdata.profession,
+                    live: userdata.live,
+                    bio: userdata.bio,
+                    skills: userdata.skills,
+                }
+            })
         }
 
     } catch (error) {
@@ -46,10 +70,11 @@ const registerUser = async (req, res) => {
         profile,
         phone,
         gender,
+        profession,
     } = req.body;
+
     try {
         const isAvailable = await checkEmailAndNumber(email, phone); // return user
-
 
         if (isAvailable) {
             return res.json({ message: "Please use different Email/Number" });
@@ -64,10 +89,11 @@ const registerUser = async (req, res) => {
             profile,
             phone,
             gender,
+            profession,
         }
 
-        const result = await createUser(userObj);
-        return res.status(201).json({ status: true, message: "User is successfully created", trace: result });
+        const result = await User.create(userObj);
+        return res.status(201).json({ status: true, message: "User is successfully created" });
     } catch (error) {
         return res.status(422).json({ status: false, message: "An error occured!", trace: error.message });
     }
@@ -83,9 +109,7 @@ const login = async (req, res) => {
             return res.json({ message: "Please use correct Email/Number" });
         }
 
-
         const result = await verifyPassword(password, user.password);
-        console.log(result)
 
         if (!result) {
             return res.json({ message: "Please use correct password" });
@@ -94,35 +118,62 @@ const login = async (req, res) => {
         // Creating token
         const token = jwt.sign({ id: user._id }, process.env.JWT);
 
-        let userdata = {
-            ...user._doc,
-            token
-        }
-
-        delete userdata.password;
-        return res.status(200).json({ status: true, message: "Login successfull", data: userdata });
+        return res.status(200).json({
+            status: true, message: "Login successfull", data: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                phone: user.phone,
+                gender: user.gender,
+                profile: user.profile,
+                profession: user.profession,
+                token
+            }
+        });
     } catch (error) {
         return res.status(400).json({ status: false, message: "An error occured!", trace: error.message });
     }
 }
 
-// Update
+// Update User
 const updateUser = async (req, res) => {
-    const body = req.body
+    const {
+        username,
+        gender,
+        live,
+        profile,
+        bio,
+        skills,
+        profession,
+    } = req.body
+
     const user = req.user;
 
     try {
-
-        if (body.password) {
-            body.password = await encryptPssword(body.password);
-        }
-
-        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, { $set: body }, { new: true });
+        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, {
+            $set: {
+                username,
+                gender,
+                live,
+                profile,
+                bio,
+                skills,
+                profession,
+            }
+        }, { new: true, runValidators: true });
 
         return res.status(200).json({
             status: true,
             message: 'User Updated!',
-            data: updatedUser
+            data: {
+                id: updatedUser._id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+                phone: updatedUser.phone,
+                gender: updatedUser.gender,
+                profile: updatedUser.profile,
+                profession: updatedUser.profession
+            }
         });
 
     } catch (error) {
@@ -169,10 +220,10 @@ const updateProfilePicture = async (req, res) => {
 // Send Request
 const sendRequest = async (req, res) => {
     try {
-        const body = req.body;
+        const { id } = req.body;
         const user = req.user;
 
-        await User.findByIdAndUpdate({ _id: body.id }, {
+        await User.findByIdAndUpdate({ _id: id }, {
             $push: {
                 pendingRequests: { _id: user._id }
             }
@@ -180,7 +231,7 @@ const sendRequest = async (req, res) => {
 
         await User.findByIdAndUpdate({ _id: user._id }, {
             $push: {
-                sendRequests: { _id: new ObjectId(body.id) }
+                sendRequests: { _id: new ObjectId(id) }
             }
         }, { new: true });
 
@@ -286,6 +337,9 @@ const blockUser = async (req, res) => {
 
     const result = checkLists(id, user.friends, user.pendingRequests, user.sendRequests);
 
+    console.log(result);
+
+
     try {
         if (result.friend) {
             await User.updateOne(
@@ -307,7 +361,7 @@ const blockUser = async (req, res) => {
                 { _id: user._id },
                 {
                     $pull: { pendingRequests: { _id: new ObjectId(id) } },
-                    $push: { friends: { _id: new ObjectId(id) } },
+                    $push: { blockList: { _id: new ObjectId(id) } },
                 }
             );
             await User.updateOne(
@@ -351,8 +405,8 @@ const friendsList = async (req, res) => {
             const ids = friends.map(friend => ObjectId(friend._id));
             const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
 
-            return res.status(422).json({
-                status: false,
+            return res.status(200).json({
+                status: true,
                 message: "Operation successfull",
                 trace: data
             });
@@ -365,9 +419,10 @@ const friendsList = async (req, res) => {
             });
         }
     } else {
-        return res.status(404).json({
-            status: false,
-            message: "User is not Available!"
+        return res.status(200).json({
+            status: true,
+            message: "No friends",
+            trace: []
         });
     }
 }
@@ -380,8 +435,8 @@ const blockList = async (req, res) => {
             const ids = blockList.map(user => ObjectId(user._id));
             const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
 
-            return res.status(422).json({
-                status: false,
+            return res.status(200).json({
+                status: true,
                 message: "Operation successfull",
                 trace: data
             });
@@ -394,9 +449,10 @@ const blockList = async (req, res) => {
             });
         }
     } else {
-        return res.status(404).json({
-            status: false,
-            message: "User is not Available!"
+        return res.status(200).json({
+            status: true,
+            message: "No User",
+            trace: []
         });
     }
 }
@@ -447,8 +503,6 @@ const unfriend = async (req, res) => {
 const unblock = async (req, res) => {
     const { id } = req.body; // end person
     const user = req.user;
-
-    console.log(user)
 
     //  check user available in the list or not
     const result = checkAvailable(id, user.blockList);
