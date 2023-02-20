@@ -77,7 +77,7 @@ const registerUser = async (req, res) => {
         const isAvailable = await checkEmailAndNumber(email, phone); // return user
 
         if (isAvailable) {
-            return res.json({ message: "Please use different Email/Number" });
+            return res.json({status: false, message: "Email/Number already in used!" });
         }
 
         password = await encryptPssword(password);
@@ -93,7 +93,7 @@ const registerUser = async (req, res) => {
         }
 
         const result = await User.create(userObj);
-        return res.status(201).json({ status: true, message: "User is successfully created" });
+        return res.status(201).json({ status: true, message: "User created!" });
     } catch (error) {
         return res.status(422).json({ status: false, message: "An error occured!", trace: error.message });
     }
@@ -187,6 +187,8 @@ const updateUser = async (req, res) => {
 
 // Update Profile Picture
 const updateProfilePicture = async (req, res) => {
+    console.log(req.files);
+    console.log(req.user);
     try {
         let profilePicture = req.files?.profilePicture;
 
@@ -195,18 +197,18 @@ const updateProfilePicture = async (req, res) => {
                 status: false,
                 message: "Please add profile picture!"
             });
-        }
+        }   
 
         let fileName = `public/profiles/${Date.now()}-${profilePicture.name.replace(/ /g, '-').toLowerCase()}`;
         await profilePicture.mv(fileName);
 
         profilePicture = fileName.replace("public", "");
-        const updateUser = await User.findByIdAndUpdate(req.user._id, { $set: { profilePicture } }, { new: true });
+        const updateUser = await User.findByIdAndUpdate(req.user._id, { $set: { profile: profilePicture } }, { new: true });
 
         return res.status(200).json({
             status: true,
             message: "Profile Picture Updated!",
-            data, updateUser
+            data: updateUser
         });
     } catch (error) {
         return res.status(422).json({
