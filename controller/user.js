@@ -67,7 +67,7 @@ const registerUser = async (req, res) => {
         email,
         password,
         username,
-        profile,
+        location,
         phone,
         gender,
         profession,
@@ -86,7 +86,7 @@ const registerUser = async (req, res) => {
             email,
             password,
             username,
-            profile,
+            location,
             phone,
             gender,
             profession,
@@ -106,13 +106,13 @@ const login = async (req, res) => {
         let user = await checkEmailAndNumber(email, phoneNumber);
 
         if (!user) {
-            return res.json({ message: "Please use correct Email/Number" });
+            return res.status(400).json({ status: false, message: "Email/Number already exits" });
         }
 
         const result = await verifyPassword(password, user.password);
 
         if (!result) {
-            return res.json({ message: "Please use correct password" });
+            return res.status(400).json({ status: false, message: "Please enter correct password" });
         }
 
         // Creating token
