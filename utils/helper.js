@@ -32,13 +32,11 @@ const verifyPassword = async (plaintextPassword, hashedPassword) => {
 };
 
 const verifationToken = async (req, res, next) => {
-    console.log(req.headers);
     let token = req.headers['authorization'];
     token = String(token).split(' ')[1];
-    console.log(token);
-    if(token == undefined){
+    if (token == undefined) {
         return res.status(422).json({
-            status: false,  
+            status: false,
             message: 'User has no access!',
             trace: 'JWT Bearer Token in undefined'
         })
