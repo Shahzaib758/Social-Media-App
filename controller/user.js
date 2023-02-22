@@ -288,10 +288,12 @@ const sendRequest = async (req, res) => {
             }
         }, { new: true });
 
+        let loggedUser = await User.findOne({ _id: user._id });
 
         return res.status(200).json({
             status: true,
-            message: "Operation successfull, request has been sended",
+            message: "Request Sent!",
+            data: loggedUser
         });
 
     } catch (error) {
