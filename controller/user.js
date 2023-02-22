@@ -51,26 +51,69 @@ const getUser = async (req, res) => {
 
 // Suggest Users based on filter
 const suggestUsers = async (req, res) => {
-    const currentUser = req.user;
+    try {
+        const currentUser = req.user;
 
-    const limit = req.query.limit || 10; // default to 10 results per page
-    const page = req.query.page || 1; // default to the first page
+        let limit = parseInt(req.query.limit) || 10; // default to 10 results per page
 
-    // Calculate the number of documents to skip based on the current page
-    const skip = (page - 1) * limit;
+        // Validate the limit parameter
+        if (limit <= 0) {
+            return res.status(400).json({ status: false, message: 'Invalid limit parameter. Must be a positive integer.' });
+        }
 
-    // Query the database for users not in the friend list, pending requests, sent requests, or block list
-    const users = await User.find({
-        _id: { $ne: currentUser._id },
-        friends: { $nin: [currentUser._id] },
-        pendingRequests: { $nin: [currentUser._id] },
-        sendRequests: { $nin: [currentUser._id] },
-        blockList: { $nin: [currentUser._id] }
-    })
-        .skip(skip)
-        .limit(limit);
+        const page = parseInt(req.query.page) || 1; // default to the first page
 
-    res.json(users);
+        // Calculate the number of documents to skip based on the current page
+        const skip = (page - 1) * limit;
+
+        // Create a filter object for the MongoDB query
+        const filter = {
+            _id: { $ne: currentUser._id },
+            friends: { $nin: [currentUser._id] },
+            pendingRequests: { $nin: [currentUser._id] },
+            sendRequests: { $nin: [currentUser._id] },
+            blockList: { $nin: [currentUser._id] }
+        };
+
+        // Add additional filters based on query parameters
+        if (req.query.minAge) {
+            filter.age = { $gte: req.query.minAge };
+        }
+
+        if (req.query.maxAge) {
+            if (!filter.age) {
+                filter.age = {};
+            }
+
+            filter.age.$lte = req.query.maxAge;
+        }
+
+        if (req.query.profession) {
+            filter.profession = req.query.profession;
+        }
+
+        if (req.query.username) {
+            filter.username = { $regex: req.query.username, $options: 'i' };
+        }
+
+        if (req.query.gender) {
+            filter.gender = req.query.gender;
+        }
+
+        if (req.query.location) {
+            filter.location = { $regex: req.query.location, $options: 'i' };
+        }
+
+        // Query the database using the filter object, skipping the appropriate number of documents and limiting to the desired number of results
+        const users = await User.find(filter)
+            .skip(skip)
+            .limit(limit);
+
+        res.json({ status: true, message: "operation successful", data: users });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ status: false, message: 'Internal server error' });
+    }
 };
 
 // Creating User
@@ -310,8 +353,6 @@ const responceRequest = async (req, res) => {
             trace: error.message
         });
     }
-
-
 }
 
 // Block User
@@ -381,9 +422,11 @@ const blockUser = async (req, res) => {
 // See Friend List
 const friendsList = async (req, res) => {
     const { friends } = req.user;
+    console.log(req.user)
     if (friends.length) {
         try {
             const ids = friends.map(friend => ObjectId(friend._id));
+            console.log(ids)
             const data = await User.find({ _id: { $in: ids } }, { username: 1, profile: 1 });
 
             return res.status(200).json({
