@@ -51,93 +51,26 @@ const getUser = async (req, res) => {
 
 // Suggest Users based on filter
 const suggestUsers = async (req, res) => {
-    console.log(req.user)
-    try {
-        const { page = 1 } = req.query;
-        let limit = 10
+    const currentUser = req.user;
 
-        console.log(await User.find())
+    const limit = req.query.limit || 10; // default to 10 results per page
+    const page = req.query.page || 1; // default to the first page
 
-        // validate the page and limit parameters
-        if (!Number.isInteger(+page) || +page <= 0) {
-            return res.status(400).json({ message: 'Invalid page number' });
-        }
-        if (!Number.isInteger(+limit) || +limit <= 0 || +limit > 100) {
-            return res.status(400).json({ message: 'Invalid limit value' });
-        }
+    // Calculate the number of documents to skip based on the current page
+    const skip = (page - 1) * limit;
 
-        // Check if any query parameters are present
-        const { username, minAge, maxAge, gender, location, profession } = req.query;
-        let filter = {
-            friends: { $nin: [req.user._id] },
-            pendingRequests: { $nin: [req.user._id] },
-            sendRequests: { $nin: [req.user._id] },
-            blockList: { $nin: [req.user._id] },
-            _id: { $ne: req.user._id },
-            // deactivate: false,
-        };
+    // Query the database for users not in the friend list, pending requests, sent requests, or block list
+    const users = await User.find({
+        _id: { $ne: currentUser._id },
+        friends: { $nin: [currentUser._id] },
+        pendingRequests: { $nin: [currentUser._id] },
+        sendRequests: { $nin: [currentUser._id] },
+        blockList: { $nin: [currentUser._id] }
+    })
+        .skip(skip)
+        .limit(limit);
 
-        if (username) {
-            console.log("username")
-            filter.username = { $regex: username, $options: 'i' };
-        }
-
-        if (minAge || maxAge) {
-            filter.dateOfBirth = {};
-            console.log("age")
-            if (minAge) {
-                const minDate = new Date();
-                minDate.setFullYear(minDate.getFullYear() - minAge);
-                filter.dateOfBirth.$lte = minDate;
-            }
-
-            if (maxAge) {
-
-                const maxDate = new Date();
-                maxDate.setFullYear(maxDate.getFullYear() - maxAge - 1);
-                filter.dateOfBirth.$gt = maxDate;
-            }
-        }
-
-        if (gender) {
-            console.log("gender")
-            filter.gender = gender;
-        }
-
-        if (location) {
-            console.log("location")
-            filter.location = { $regex: location, $options: 'i' };
-        }
-
-        if (profession) {
-            console.log("profession")
-            filter.profession = { $regex: profession, $options: 'i' };
-        }
-
-        console.log(filter)
-        // If there are no filter parameters, just return all users
-        const count = await User.countDocuments(filter);
-        console.log(count)
-        if (count === 0) {
-            let users = await User.aggregate([{ $match: filter }, { $sample: { size: parseInt(limit) } }]);
-            return res.json({ data: users, totalPages: 1 });
-        }
-
-        // Otherwise, filter and paginate users
-        const users = await User.find(filter)
-            .sort({ _id: -1 })
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit))
-            .select('-friends -pendingRequests -sendRequests -blockList');
-
-
-        const totalPages = Math.ceil(count / limit);
-
-        res.json({ status: true, message: "Operation successfull", trace: users, totalPages });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ status: false, message: 'Internal server error' });
-    }
+    res.json(users);
 };
 
 // Creating User
@@ -278,22 +211,20 @@ const sendRequest = async (req, res) => {
 
         await User.findByIdAndUpdate({ _id: id }, {
             $push: {
-                pendingRequests: { _id: user._id }
+                pendingRequests: user._id
             }
         }, { new: true });
 
         await User.findByIdAndUpdate({ _id: user._id }, {
             $push: {
-                sendRequests: { _id: new ObjectId(id) }
+                sendRequests: new ObjectId(id)
             }
         }, { new: true });
 
-        let loggedUser = await User.findOne({ _id: user._id });
 
         return res.status(200).json({
             status: true,
-            message: "Request Sent!",
-            data: loggedUser
+            message: "Operation successfull, request has been sended",
         });
 
     } catch (error) {
@@ -325,8 +256,8 @@ const responceRequest = async (req, res) => {
             await User.updateOne(
                 { _id: id },
                 {
-                    $push: { friends: { _id: user._id } },
-                    $pull: { sendRequests: { _id: user._id } }
+                    $push: { friends: user._id },
+                    $pull: { sendRequests: user._id }
                 }
             );
 
@@ -334,8 +265,8 @@ const responceRequest = async (req, res) => {
             await User.updateOne(
                 { _id: user._id },
                 {
-                    $push: { friends: { _id: new ObjectId(id) } },
-                    $pull: { pendingRequests: { _id: new ObjectId(id) } }
+                    $push: { friends: new ObjectId(id) },
+                    $pull: { pendingRequests: new ObjectId(id) }
                 }
             );
 
@@ -359,14 +290,14 @@ const responceRequest = async (req, res) => {
             await User.updateOne(
                 { _id: id },
                 {
-                    $pull: { sendRequests: { _id: user._id } }
+                    $pull: { sendRequests: user._id }
                 }
             );
 
             // delete request from user pending request list
             await User.updateOne(
                 { _id: user._id },
-                { $pull: { pendingRequests: { _id: new ObjectId(id) } } }
+                { $pull: { pendingRequests: new ObjectId(id) } }
             );
 
             res.json({ status: true, message: "Operation is successfull, request has been declined" });
@@ -395,14 +326,14 @@ const blockUser = async (req, res) => {
             await User.updateOne(
                 { _id: user._id },
                 {
-                    $pull: { friends: { _id: new ObjectId(id) } },
-                    $push: { blockList: { _id: new ObjectId(id) } },
+                    $pull: { friends: new ObjectId(id) },
+                    $push: { blockList: new ObjectId(id) },
                 }
             );
             await User.updateOne(
                 { _id: id },
                 {
-                    $pull: { friends: { _id: user._id } },
+                    $pull: { friends: user._id },
                 }
             );
         }
@@ -410,14 +341,14 @@ const blockUser = async (req, res) => {
             await User.updateOne(
                 { _id: user._id },
                 {
-                    $pull: { pendingRequests: { _id: new ObjectId(id) } },
-                    $push: { blockList: { _id: new ObjectId(id) } },
+                    $pull: { pendingRequests: new ObjectId(id) },
+                    $push: { blockList: new ObjectId(id) },
                 }
             );
             await User.updateOne(
                 { _id: id },
                 {
-                    $pull: { sendRequests: { _id: user._id } },
+                    $pull: { sendRequests: user._id },
                 }
             );
         }
@@ -425,14 +356,14 @@ const blockUser = async (req, res) => {
             await User.updateOne(
                 { _id: user._id },
                 {
-                    $pull: { sendRequests: { _id: new ObjectId(id) } },
-                    $push: { blockList: { _id: new ObjectId(id) } }
+                    $pull: { sendRequests: new ObjectId(id) },
+                    $push: { blockList: new ObjectId(id) }
                 }
             );
             await User.updateOne(
                 { _id: id },
                 {
-                    $pull: { pendingRequests: { _id: user._id } },
+                    $pull: { pendingRequests: user._id },
                 }
             );
         }
@@ -453,7 +384,7 @@ const friendsList = async (req, res) => {
     if (friends.length) {
         try {
             const ids = friends.map(friend => ObjectId(friend._id));
-            const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
+            const data = await User.find({ _id: { $in: ids } }, { username: 1, profile: 1 });
 
             return res.status(200).json({
                 status: true,
@@ -483,7 +414,7 @@ const pendingRequestList = async (req, res) => {
     if (pendingRequests.length) {
         try {
             const ids = pendingRequests.map(pendingRequest => ObjectId(pendingRequest._id));
-            const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
+            const data = await User.find({ _id: { $in: ids } }, { username: 1, profile: 1 });
 
             return res.status(200).json({
                 status: true,
@@ -513,7 +444,7 @@ const blockList = async (req, res) => {
     if (blockList.length) {
         try {
             const ids = blockList.map(user => ObjectId(user._id));
-            const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
+            const data = await User.find({ _id: { $in: ids } }, { username: 1, profile: 1 });
 
             return res.status(200).json({
                 status: true,
@@ -555,7 +486,7 @@ const unfriend = async (req, res) => {
         await User.updateOne(
             { _id: user._id },
             {
-                $pull: { friends: { _id: new ObjectId(id) } },
+                $pull: { friends: new ObjectId(id) },
             }
         );
 
@@ -563,7 +494,7 @@ const unfriend = async (req, res) => {
         await User.findByIdAndUpdate(
             { _id: id },
             {
-                $pull: { friends: { _id: user._id } },
+                $pull: { friends: user._id },
             }
         );
 
@@ -599,7 +530,7 @@ const unblock = async (req, res) => {
         await User.updateOne(
             { _id: user._id },
             {
-                $pull: { blockList: { _id: new ObjectId(id) } },
+                $pull: { blockList: new ObjectId(id) },
             }
         );
 
