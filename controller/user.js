@@ -15,7 +15,7 @@ const User = require("../models/user");
 // GET Single User 
 const getUser = async (req, res) => {
     const user = req.user;
-    const { id } = req.body;
+    const { id } = req.params;
 
     try {
         // Check weather request is for Users own profile
@@ -33,26 +33,14 @@ const getUser = async (req, res) => {
             const result_1 = checkLists(id, [], [], [], user.blockList);
             const result_2 = checkLists(user._id, [], [], [], userdata.blockList);
 
-            console.log(result_1.isBlocked);
-            console.log(result_2.isBlocked);
-
             if ((result_1.isBlocked) || (result_2.isBlocked)) {
                 return res.status(400).json({ status: false, message: "User doesnot exit" })
             }
 
             return res.json({
-                status: true, message: "Operation successfull", data: {
-                    id: userdata._id,
-                    username: userdata.username,
-                    email: userdata.email,
-                    phone: userdata.phone,
-                    gender: userdata.gender,
-                    profile: userdata.profile,
-                    profession: userdata.profession,
-                    live: userdata.live,
-                    bio: userdata.bio,
-                    skills: userdata.skills,
-                }
+                status: true,
+                message: "Operation successfull",
+                data: userdata
             })
         }
 
@@ -77,7 +65,7 @@ const registerUser = async (req, res) => {
         const isAvailable = await checkEmailAndNumber(email, phone); // return user
 
         if (isAvailable) {
-            return res.json({status: false, message: "Email/Number already in used!" });
+            return res.json({ status: false, message: "Email/Number already in used!" });
         }
 
         password = await encryptPssword(password);
@@ -137,43 +125,17 @@ const login = async (req, res) => {
 
 // Update User
 const updateUser = async (req, res) => {
-    const {
-        username,
-        gender,
-        live,
-        profile,
-        bio,
-        skills,
-        profession,
-    } = req.body
 
+    const body = req.body;
     const user = req.user;
 
     try {
-        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, {
-            $set: {
-                username,
-                gender,
-                live,
-                profile,
-                bio,
-                skills,
-                profession,
-            }
-        }, { new: true, runValidators: true });
+        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, { $set: body }, { new: true, runValidators: true });
 
         return res.status(200).json({
             status: true,
             message: 'User Updated!',
-            data: {
-                id: updatedUser._id,
-                username: updatedUser.username,
-                email: updatedUser.email,
-                phone: updatedUser.phone,
-                gender: updatedUser.gender,
-                profile: updatedUser.profile,
-                profession: updatedUser.profession
-            }
+            data: updatedUser
         });
 
     } catch (error) {
@@ -197,7 +159,7 @@ const updateProfilePicture = async (req, res) => {
                 status: false,
                 message: "Please add profile picture!"
             });
-        }   
+        }
 
         let fileName = `public/profiles/${Date.now()}-${profilePicture.name.replace(/ /g, '-').toLowerCase()}`;
         await profilePicture.mv(fileName);

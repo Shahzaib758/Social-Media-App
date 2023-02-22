@@ -24,7 +24,7 @@ router.put('/updateProfilePicture', verifationToken, updateProfilePicture); // U
 router.put('/send/request', verifationToken, sendRequest); // Sending Request to other User
 router.put('/respone/request', verifationToken, responceRequest); // Responding on a friend request
 router.put('/block/user', verifationToken, blockUser); // Block other User
-router.get("/", verifationToken, getUser) // Get Single User
+router.get("/:id", verifationToken, getUser) // Get Single User
 router.get('/friends', verifationToken, friendsList); // Get friends list
 router.get('/block/list', verifationToken, blockList); // Get Blocked users List
 router.put('/unfriend', verifationToken, unfriend); // Unfriend User
