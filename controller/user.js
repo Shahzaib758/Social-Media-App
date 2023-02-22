@@ -61,6 +61,85 @@ const getUser = async (req, res) => {
     }
 }
 
+// Suggest Users based on filter
+const suggestUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+
+        // validate the page and limit parameters
+        if (!Number.isInteger(+page) || +page <= 0) {
+            return res.status(400).json({ message: 'Invalid page number' });
+        }
+        if (!Number.isInteger(+limit) || +limit <= 0 || +limit > 100) {
+            return res.status(400).json({ message: 'Invalid limit value' });
+        }
+
+        // Check if any query parameters are present
+        const { username, minAge, maxAge, gender, location, profession } = req.query;
+        let filter = {
+            friends: { $nin: [req.user._id] },
+            pendingRequests: { $nin: [req.user._id] },
+            sendRequests: { $nin: [req.user._id] },
+            blockList: { $nin: [req.user._id] },
+            _id: { $ne: req.user._id },
+            deactivate: false,
+        };
+        if (username) {
+            filter.username = { $regex: username, $options: 'i' };
+        }
+
+        if (minAge || maxAge) {
+            filter.dateOfBirth = {};
+
+            if (minAge) {
+                const minDate = new Date();
+                minDate.setFullYear(minDate.getFullYear() - minAge);
+                filter.dateOfBirth.$lte = minDate;
+            }
+
+            if (maxAge) {
+                const maxDate = new Date();
+                maxDate.setFullYear(maxDate.getFullYear() - maxAge - 1);
+                filter.dateOfBirth.$gt = maxDate;
+            }
+        }
+
+        if (gender) {
+            filter.gender = gender;
+        }
+
+        if (location) {
+            filter.location = { $regex: location, $options: 'i' };
+        }
+
+        if (profession) {
+            filter.profession = { $regex: profession, $options: 'i' };
+        }
+
+        // If there are no filter parameters, just return all users
+        const count = await User.countDocuments(filter);
+        if (count === 0) {
+            const users = await User.aggregate([{ $sample: { size: parseInt(limit) } }]);
+            return res.json({ data: users, totalPages: 1 });
+        }
+
+        // Otherwise, filter and paginate users
+        const users = await User.find(filter)
+            .sort({ _id: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .select('-friends -pendingRequests -sendRequests -blockList');
+
+        const totalPages = Math.ceil(count / limit);
+
+        res.json({ status: true, message: "Operation successfull", trace: users, totalPages });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ status: false, message: 'Internal server error' });
+    }
+};
+
+
 // Creating User
 const registerUser = async (req, res) => {
     let {
@@ -427,6 +506,35 @@ const friendsList = async (req, res) => {
     }
 }
 
+const pendingRequestList = async (req, res) => {
+    const { pendingRequests } = req.user;
+    if (pendingRequests.length) {
+        try {
+            const ids = pendingRequests.map(pendingRequest => ObjectId(pendingRequest._id));
+            const data = await User.find({ _id: { $in: ids } }, { userName: 1, profile: 1 });
+
+            return res.status(200).json({
+                status: true,
+                message: "Operation successfull",
+                trace: data
+            });
+
+        } catch (error) {
+            return res.status(422).json({
+                status: false,
+                message: "Unexpected Error Occured! while fetching pending request list",
+                trace: error.message
+            });
+        }
+    } else {
+        return res.status(200).json({
+            status: true,
+            message: "No friends",
+            trace: []
+        });
+    }
+}
+
 // See Block List
 const blockList = async (req, res) => {
     const { blockList } = req.user;
@@ -537,13 +645,9 @@ const unblock = async (req, res) => {
 }
 
 
-
-// See All Pending request  using db.getCollection('feed').find({"_id" : {"$in" : [ObjectId("55880c251df42d0466919268"), ObjectId("55bf528e69b70ae79be35006")]}});
-// https://stackoverflow.com/questions/32264225/how-to-get-multiple-document-using-array-of-mongodb-id
-
-
 module.exports = {
     getUser,
+    suggestUsers,
     registerUser,
     login,
     updateUser,
@@ -552,6 +656,7 @@ module.exports = {
     responceRequest,
     blockUser,
     friendsList,
+    pendingRequestList,
     blockList,
     unfriend,
     unblock

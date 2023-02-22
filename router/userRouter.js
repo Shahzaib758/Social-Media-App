@@ -12,7 +12,9 @@ const {
     friendsList,
     blockList,
     unfriend,
-    unblock
+    unblock,
+    suggestUsers,
+    pendingRequestList
 } = require("../controller/user");
 
 const { verifationToken } = require("../utils/helper")
@@ -27,9 +29,10 @@ router.put('/block/user', verifationToken, blockUser); // Block other User
 router.get("/", verifationToken, getUser) // Get Single User
 router.get('/friends', verifationToken, friendsList); // Get friends list
 router.get('/block/list', verifationToken, blockList); // Get Blocked users List
+router.get('/pendingRequest/list', verifationToken, pendingRequestList); // Get Pending Request List
 router.put('/unfriend', verifationToken, unfriend); // Unfriend User
 router.put('/unblock', verifationToken, unblock); // Unblock User
-
+router.get('/users/suggested', verifationToken, suggestUsers);// Suggest Users
 
 
 module.exports = router;
