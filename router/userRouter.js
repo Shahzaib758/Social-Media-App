@@ -27,7 +27,8 @@ router.put('/send/request', verifationToken, sendRequest); // Sending Request to
 router.put('/respone/request', verifationToken, responceRequest); // Responding on a friend request
 router.put('/block/user', verifationToken, blockUser); // Block other User
 router.get("/:id", verifationToken, getUser) // Get Single User
-router.get('/friends', verifationToken, friendsList); // Get friends list
+router.get("/friends/list", verifationToken, friendsList)
+router.get('/friends',); // Get friends list
 router.get('/block/list', verifationToken, blockList); // Get Blocked users List
 router.get('/pendingRequest/list', verifationToken, pendingRequestList); // Get Pending Request List
 router.put('/unfriend', verifationToken, unfriend); // Unfriend User
