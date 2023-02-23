@@ -12,20 +12,12 @@ const userSchema = new mongoose.Schema({
         trim: true
     },
     phone: {
-        type: Number,
+        type: String,
         required: [true, "Phone number is required"],
     },
     dateOfBirth: {
-        type: Date,
+        type: String,
         required: true,
-        validate: {
-            validator: function (value) {
-                // validate that the value is a valid date and is not in the future
-                const now = new Date();
-                return value instanceof Date && value <= now;
-            },
-            message: 'Invalid date of birth',
-        },
     },
     password: {
         type: String,

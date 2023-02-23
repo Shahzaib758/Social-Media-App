@@ -53,6 +53,7 @@ const getUser = async (req, res) => {
 const suggestUsers = async (req, res) => {
     try {
         const currentUser = req.user;
+        console.log(currentUser)
 
         let limit = parseInt(req.query.limit) || 10; // default to 10 results per page
 
@@ -126,6 +127,7 @@ const registerUser = async (req, res) => {
         phone,
         gender,
         profession,
+        dateOfBirth
     } = req.body;
 
     try {
@@ -145,6 +147,7 @@ const registerUser = async (req, res) => {
             phone,
             gender,
             profession,
+            dateOfBirth
         }
 
         const result = await User.create(userObj);
@@ -175,14 +178,9 @@ const login = async (req, res) => {
 
         return res.status(200).json({
             status: true, message: "Login successfull", data: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                phone: user.phone,
-                gender: user.gender,
-                profile: user.profile,
-                profession: user.profession,
-                token
+                ...user,
+                token,
+                id: user._id
             }
         });
     } catch (error) {
@@ -258,7 +256,7 @@ const sendRequest = async (req, res) => {
             }
         }, { new: true });
 
-        await User.findByIdAndUpdate({ _id: user._id }, {
+        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, {
             $push: {
                 sendRequests: new ObjectId(id)
             }
@@ -267,7 +265,8 @@ const sendRequest = async (req, res) => {
 
         return res.status(200).json({
             status: true,
-            message: "Operation successfull, request has been sended",
+            message: "Link Sent!",
+            data: updatedUser
         });
 
     } catch (error) {
@@ -305,17 +304,19 @@ const responceRequest = async (req, res) => {
             );
 
             // adding requset sender into the friend list of user and remove sender request from pending request list 
-            await User.updateOne(
+            const updateUser = await User.updateOne(
                 { _id: user._id },
                 {
                     $push: { friends: new ObjectId(id) },
                     $pull: { pendingRequests: new ObjectId(id) }
-                }
+                },
+                { new: true }
             );
 
             return res.status(200).json({
                 status: true,
                 message: "Operation is successfull, request has been accepted",
+                data: updateUser
             });
 
         } else { // Rejecting friend request
@@ -432,7 +433,7 @@ const friendsList = async (req, res) => {
             return res.status(200).json({
                 status: true,
                 message: "Operation successfull",
-                trace: data
+                data: data
             });
 
         } catch (error) {
@@ -526,11 +527,12 @@ const unfriend = async (req, res) => {
 
     try {
         // removing end person from user friends list
-        await User.updateOne(
+        const updatedUser = await User.findByIdAndUpdate(
             { _id: user._id },
             {
                 $pull: { friends: new ObjectId(id) },
-            }
+            },
+            {new: true}
         );
 
         // removing user from end person friends list
@@ -544,6 +546,7 @@ const unfriend = async (req, res) => {
         return res.status(200).json({
             status: true,
             message: "Operation successfull user is unfriended",
+            data: updatedUser
         });
     } catch (error) {
         return res.status(422).json({
