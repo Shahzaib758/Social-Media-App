@@ -304,7 +304,7 @@ const responceRequest = async (req, res) => {
             );
 
             // adding requset sender into the friend list of user and remove sender request from pending request list 
-            const updateUser = await User.updateOne(
+            const updateUser = await User.findByIdAndUpdate(
                 { _id: user._id },
                 {
                     $push: { friends: new ObjectId(id) },

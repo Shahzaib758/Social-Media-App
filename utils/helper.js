@@ -58,7 +58,7 @@ const verifationToken = async (req, res, next) => {
 
 const checkAvailable = (id, pendingRequests) => {
     // Checking weather user is in request pending the list or not
-    pendingRequests = pendingRequests.map(person => person._id.toString());
+    // pendingRequests = pendingRequests.map(person => person._id.toString());
     
     return pendingRequests.some((person) => person._id.toHexString() === id);
 };
