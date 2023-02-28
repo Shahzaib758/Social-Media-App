@@ -195,7 +195,7 @@ const updateUser = async (req, res) => {
     const user = req.user;
 
     try {
-        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, { $set: body }, { new: true, runValidators: true });
+        const updatedUser = await User.findByIdAndUpdate({ _id: user._id.toHexString() }, { $set: body }, { new: true, runValidators: true });
 
         return res.status(200).json({
             status: true,
@@ -228,7 +228,7 @@ const updateProfilePicture = async (req, res) => {
         await profilePicture.mv(fileName);
 
         profilePicture = fileName.replace("public", "");
-        const updateUser = await User.findByIdAndUpdate(req.user._id, { $set: { profile: profilePicture } }, { new: true });
+        const updateUser = await User.findByIdAndUpdate(req.user._id.toHexString(), { $set: { profile: profilePicture } }, { new: true });
 
         return res.status(200).json({
             status: true,
@@ -256,7 +256,7 @@ const sendRequest = async (req, res) => {
             }
         }, { new: true });
 
-        const updatedUser = await User.findByIdAndUpdate({ _id: user._id }, {
+        const updatedUser = await User.findByIdAndUpdate({ _id: user._id.toHexString() }, {
             $push: {
                 sendRequests: new ObjectId(id)
             }
@@ -305,14 +305,14 @@ const responceRequest = async (req, res) => {
 
             // adding requset sender into the friend list of user and remove sender request from pending request list 
             const updateUser = await User.findByIdAndUpdate(
-                { _id: user._id },
+                { _id: user._id.toHexString() },
                 {
                     $push: { friends: new ObjectId(id) },
                     $pull: { pendingRequests: new ObjectId(id) }
                 },
                 { new: true }
             );
-
+ 
             return res.status(200).json({
                 status: true,
                 message: "Operation is successfull, request has been accepted",
@@ -528,11 +528,11 @@ const unfriend = async (req, res) => {
     try {
         // removing end person from user friends list
         const updatedUser = await User.findByIdAndUpdate(
-            { _id: user._id },
+            { _id: user._id.toHexString() },
             {
                 $pull: { friends: new ObjectId(id) },
             },
-            {new: true}
+            { new: true }
         );
 
         // removing user from end person friends list
