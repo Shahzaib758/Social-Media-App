@@ -41,7 +41,7 @@ const server = app.listen(process.env.PORT || 5000, () => {
 
 const io = require("socket.io")(server, {
     cors: {
-        origin: ["https://sugar-link.vercel.app/"],
+        origin: "http://localhost:3000",
     },
 });
 
