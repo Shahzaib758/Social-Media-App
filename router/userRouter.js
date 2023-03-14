@@ -15,6 +15,7 @@ const {
     unblock,
     pendingRequestList,
     suggestUsers,
+    searchChat,
 } = require("../controller/user");
 
 const { verifationToken } = require("../utils/helper")
@@ -28,12 +29,12 @@ router.put('/respone/request', verifationToken, responceRequest); // Responding 
 router.put('/block/user', verifationToken, blockUser); // Block other User
 router.get("/:id", verifationToken, getUser) // Get Single User
 router.get("/friends/list", verifationToken, friendsList)
-router.get('/friends',); // Get friends list
 router.get('/block/list', verifationToken, blockList); // Get Blocked users List
 router.get('/pendingRequest/list', verifationToken, pendingRequestList); // Get Pending Request List
 router.put('/unfriend', verifationToken, unfriend); // Unfriend User
 router.put('/unblock', verifationToken, unblock); // Unblock User
 router.get('/users/suggested', verifationToken, suggestUsers);// Suggest Users
+router.get('/search/chat', verifationToken, searchChat);// Suggest Users
 
 
 module.exports = router;

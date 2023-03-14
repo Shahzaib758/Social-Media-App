@@ -312,7 +312,7 @@ const responceRequest = async (req, res) => {
                 },
                 { new: true }
             );
- 
+
             return res.status(200).json({
                 status: true,
                 message: "Operation is successfull, request has been accepted",
@@ -593,6 +593,36 @@ const unblock = async (req, res) => {
     }
 }
 
+const searchChat = async (req, res) => {
+    const username = String(req.query.username).toLowerCase();
+    const { friends } = req.user;
+    if (friends.length > 0) {
+        try {
+            const ids = friends.map(friend => ObjectId(friend._id));
+            const users = await User.find({ _id: { $in: ids } }, { username: 1, profile: 1 });
+            const data = users.filter(user => String(user.username).toLowerCase().includes(username));
+
+            return res.status(200).json({
+                status: true,
+                message: "Operation successfull",
+                data
+            });
+
+        } catch (error) {
+            return res.status(422).json({
+                status: false,
+                message: "Unexpected Error Occured! while fetching friend list",
+                trace: error.message
+            });
+        }
+    } else {
+        return res.status(200).json({
+            status: true,
+            message: "No friends",
+            trace: []
+        });
+    }
+}
 
 module.exports = {
     getUser,
@@ -608,5 +638,6 @@ module.exports = {
     pendingRequestList,
     blockList,
     unfriend,
-    unblock
+    unblock,
+    searchChat
 }
